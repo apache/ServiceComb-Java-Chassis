@@ -17,16 +17,14 @@
 
 package org.apache.servicecomb.config;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import org.apache.commons.configuration.AbstractConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertyConverter;
 import org.apache.commons.configuration.SubsetConfiguration;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
 
 /**
  * This class holds configurations that need to be configured
@@ -70,6 +68,8 @@ public class BootStrapProperties {
   public static final String CONFIG_SERVICE_NAME = "servicecomb.service.name";
 
   public static final String CONFIG_SERVICE_VERSION = "servicecomb.service.version";
+
+  public static final String CONFIG_SERVICE_VERSION_AUTO_GENERATE = "servicecomb.service.versionAutoGenerate";
 
   public static final String CONFIG_SERVICE_ROLE = "servicecomb.service.role";
 
@@ -132,8 +132,28 @@ public class BootStrapProperties {
   }
 
   public static String readServiceVersion(Configuration configuration) {
-    return readStringValue(configuration, CONFIG_SERVICE_VERSION, OLD_CONFIG_SERVICE_VERSION,
-        DEFAULT_MICROSERVICE_VERSION);
+    String version = readStringValue(configuration, CONFIG_SERVICE_VERSION, OLD_CONFIG_SERVICE_VERSION,
+            "");
+    String serviceVersionAuto = readServiceVersionAuto(configuration);
+    if(StringUtils.isBlank(version)){
+      if(StringUtils.equalsAnyIgnoreCase(serviceVersionAuto, "timestamp")){
+        version = DateFormatUtils.format(new Date(), "yyyy.MMdd.HHmm.ss");
+      }
+      if(StringUtils.isBlank(version)){
+        version = DEFAULT_MICROSERVICE_VERSION;
+      }
+    }
+    return version;
+  }
+
+  /**
+   * 自动生成版本号（默认为空，不使用）
+   * @param configuration
+   * @return timestamp:使用时间格式生成
+   */
+  public static String readServiceVersionAuto(Configuration configuration) {
+    return readStringValue(configuration, CONFIG_SERVICE_VERSION_AUTO_GENERATE, "",
+            "");
   }
 
   public static String readServiceVersion() {
