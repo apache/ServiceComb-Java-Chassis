@@ -36,6 +36,7 @@ import org.apache.servicecomb.foundation.common.net.IpPort;
 import org.apache.servicecomb.foundation.common.net.URIEndpointObject;
 import org.apache.servicecomb.foundation.common.utils.ExceptionUtils;
 import org.apache.servicecomb.foundation.common.utils.JsonUtils;
+import org.apache.servicecomb.foundation.common.utils.SPIServiceUtils;
 import org.apache.servicecomb.foundation.vertx.client.http.HttpClientWithContext;
 import org.apache.servicecomb.foundation.vertx.http.HttpServletRequestEx;
 import org.apache.servicecomb.foundation.vertx.http.HttpServletResponseEx;
@@ -48,6 +49,7 @@ import org.apache.servicecomb.swagger.invocation.AsyncResponse;
 import org.apache.servicecomb.swagger.invocation.Response;
 import org.apache.servicecomb.swagger.invocation.exception.CommonExceptionData;
 import org.apache.servicecomb.swagger.invocation.exception.InvocationException;
+import org.apache.servicecomb.transport.rest.client.HttpRestClientInvocationHook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -117,12 +119,17 @@ public class RestClientInvocation {
         filter.beforeSendRequest(invocation, requestEx);
       }
     }
+    List<HttpRestClientInvocationHook> httpRestClientInvocationHooks =
+            SPIServiceUtils.getAllService(HttpRestClientInvocationHook.class);
 
     clientRequest.exceptionHandler(e -> {
       invocation.getTraceIdLogger()
           .error(LOGGER, "Failed to send request, alreadyFailed:{}, local:{}, remote:{}, message={}.",
               alreadyFailed, getLocalAddress(), ipPort.getSocketAddress(),
               ExceptionUtils.getExceptionMessageWithoutTrace(e));
+      httpRestClientInvocationHooks.forEach(httpServerExceptionHandler -> {
+        httpServerExceptionHandler.handle(e);
+      });
       throwableHandler.handle(e);
     });
 
