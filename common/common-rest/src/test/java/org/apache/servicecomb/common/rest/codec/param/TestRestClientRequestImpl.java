@@ -32,6 +32,7 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Multimap;
 
+import io.vertx.core.Context;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
@@ -44,6 +45,9 @@ import mockit.Mocked;
 public class TestRestClientRequestImpl {
   @Mocked
   private HttpClientRequest request;
+
+  @Mocked
+  private Context context;
 
   @Test
   public void testForm() throws Exception {
@@ -164,10 +168,10 @@ public class TestRestClientRequestImpl {
         result = uuid;
       }
     };
-    RestClientRequestImpl restClientRequest = new RestClientRequestImpl(request, null, null);
+    RestClientRequestImpl restClientRequest = new RestClientRequestImpl(request, context, null);
     restClientRequest.doEndWithUpload();
 
     Assert.assertEquals("multipart/form-data; charset=UTF-8; boundary=boundary00000000-0000-0000-0000-000000000000",
-        headers.get(HttpHeaders.CONTENT_TYPE.toString()));
+        headers.get(HttpHeaders.CONTENT_TYPE));
   }
 }

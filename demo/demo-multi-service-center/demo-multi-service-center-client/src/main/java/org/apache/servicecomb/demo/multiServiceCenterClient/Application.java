@@ -58,14 +58,26 @@ public class Application {
         expectedThread.add(thread.getName());
       }
     });
+    //registry-watch-vert.x-eventloop-thread-3(option)
+    //registry-watch-vert.x-eventloop-thread-2(option)
     //registry-watch-vert.x-eventloop-thread-1
     //registry-watch-vert.x-eventloop-thread-0
+    //registry-watch-serverB-vert.x-eventloop-thread-3(option)
+    //registry-watch-serverB-vert.x-eventloop-thread-2(option)
     //registry-watch-serverB-vert.x-eventloop-thread-1
     //registry-watch-serverB-vert.x-eventloop-thread-0
+    //registry-watch-pool-worker-service-center-watch-1
+    //registry-watch-pool-worker-service-center-watch-0
+    //registry-watch-serverB-pool-worker-service-center-watch-1
+    //registry-watch-serverB-pool-worker-service-center-watch-0
+    //registry-vert.x-eventloop-thread-3(option)
+    //registry-vert.x-eventloop-thread-2(option)
     //registry-vert.x-eventloop-thread-1
     //registry-vert.x-eventloop-thread-0
+    //registry-serverB-vert.x-eventloop-thread-3(option)
+    //registry-serverB-vert.x-eventloop-thread-2(option)
     //registry-serverB-vert.x-eventloop-thread-1
     //registry-serverB-vert.x-eventloop-thread-0
-    TestMgr.check(expectedThread.size(), 8);
+    TestMgr.check(expectedThread.size() >= 12, expectedThread.size() <= 20);
   }
 }

@@ -20,7 +20,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultEndpointMetric;
-import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultHttpSocketMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultTcpSocketMetric;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -80,15 +80,15 @@ public class TestDefaultHttpServerMetrics {
 
   String remoteName = "remote";
 
-  DefaultHttpSocketMetric socketMetric_listen1_1;
+  DefaultTcpSocketMetric socketMetric_listen1_1;
 
-  DefaultHttpSocketMetric socketMetric_listen1_2;
+  DefaultTcpSocketMetric socketMetric_listen1_2;
 
-  DefaultHttpSocketMetric socketMetric_listen2_1;
+  DefaultTcpSocketMetric socketMetric_listen2_1;
 
-  DefaultHttpSocketMetric socketMetric_listen2_2;
+  DefaultTcpSocketMetric socketMetric_listen2_2;
 
-  DefaultHttpSocketMetric socketMetric_listen2_3;
+  DefaultTcpSocketMetric socketMetric_listen2_3;
 
   @Before
   public void setup() {

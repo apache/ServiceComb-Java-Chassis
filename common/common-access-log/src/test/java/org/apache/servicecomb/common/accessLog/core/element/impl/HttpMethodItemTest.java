@@ -93,7 +93,7 @@ public class HttpMethodItemTest {
   @Test
   public void clientFormattedElement() {
     when(restClientRequest.getRequest()).thenReturn(clientRequest);
-    when(clientRequest.method()).thenReturn(HttpMethod.DELETE);
+    when(clientRequest.getMethod()).thenReturn(HttpMethod.DELETE);
     ITEM.appendClientFormattedItem(finishEvent, strBuilder);
     Assert.assertEquals("DELETE", strBuilder.toString());
   }
@@ -127,7 +127,7 @@ public class HttpMethodItemTest {
 
   @Test
   public void clientFormattedElementOnMethodIsNull() {
-    when(clientRequest.method()).thenReturn(null);
+    when(clientRequest.getMethod()).thenReturn(null);
     ITEM.appendClientFormattedItem(finishEvent, strBuilder);
     Assert.assertEquals("-", strBuilder.toString());
   }

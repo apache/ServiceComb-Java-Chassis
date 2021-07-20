@@ -21,7 +21,8 @@ import org.apache.servicecomb.foundation.vertx.http.VertxServerRequestToHttpServ
 import org.junit.Assert;
 import org.junit.Test;
 
-import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.impl.HttpServerRequestInternal;
+import io.vertx.ext.web.AllowForwardHeaders;
 import io.vertx.ext.web.RoutingContext;
 import mockit.Expectations;
 import mockit.Mocked;
@@ -30,10 +31,12 @@ import mockit.Mocked;
 public class TestHttpServerRequestUtils {
   @Test
   public void testVertxServerRequestToHttpServletRequest(@Mocked RoutingContext context,
-      @Mocked HttpServerRequest request) {
-    HttpServerRequestWrapper wrapper = new HttpServerRequestWrapper(request);
+      @Mocked HttpServerRequestInternal request) {
+    HttpServerRequestWrapper wrapper = new HttpServerRequestWrapper(request, AllowForwardHeaders.NONE);
     new Expectations() {
       {
+        request.scheme();
+        result = "http";
         context.request();
         result = wrapper;
       }

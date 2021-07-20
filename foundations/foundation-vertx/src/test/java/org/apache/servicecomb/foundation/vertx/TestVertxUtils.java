@@ -58,32 +58,53 @@ public class TestVertxUtils {
   public void testCreateVertxWithFileCPResolving() {
     // Prepare
     ArchaiusUtils.resetConfig();
-    String cacheDirBase = System.getProperty(FileResolver.CACHE_DIR_BASE_PROP_NAME,
-        System.getProperty("java.io.tmpdir", ".") + File.separator + "vertx-cache");
-    File file = new File(cacheDirBase);
 
     // create .vertx folder
-    FileUtils.deleteQuietly(file);
-    Assert.assertFalse(file.exists());
     ArchaiusUtils.setProperty(FileResolver.DISABLE_CP_RESOLVING_PROP_NAME, false);
+    deleteCacheFile();
     VertxUtils.getOrCreateVertxByName("testCreateVertxWithFileCPResolvingFalse", null);
-    Assert.assertTrue(file.exists());
+    Assert.assertTrue(isCacheFileExists());
     VertxUtils.blockCloseVertxByName("testCreateVertxWithFileCPResolvingFalse");
 
     // don't create .vertx folder
-    FileUtils.deleteQuietly(file);
-    Assert.assertFalse(file.exists());
+    deleteCacheFile();
+    Assert.assertFalse(isCacheFileExists());
     ArchaiusUtils.setProperty(FileResolver.DISABLE_CP_RESOLVING_PROP_NAME, true);
     VertxUtils.getOrCreateVertxByName("testCreateVertxWithFileCPResolvingTrue", null);
-    Assert.assertFalse(file.exists());
+    Assert.assertFalse(isCacheFileExists());
     VertxUtils.blockCloseVertxByName("testCreateVertxWithFileCPResolvingTrue");
 
     ArchaiusUtils.resetConfig();
   }
 
+  private void deleteCacheFile() {
+    String cacheDirBase = System.getProperty(FileResolver.CACHE_DIR_BASE_PROP_NAME,
+        System.getProperty("java.io.tmpdir", "."));
+    File folder = new File(cacheDirBase);
+    File[] files = folder.listFiles();
+    for (File f : files) {
+      if (f.getName().startsWith("vertx-cache")) {
+        FileUtils.deleteQuietly(f);
+      }
+    }
+  }
+
+  private boolean isCacheFileExists() {
+    String cacheDirBase = System.getProperty(FileResolver.CACHE_DIR_BASE_PROP_NAME,
+        System.getProperty("java.io.tmpdir", "."));
+    File folder = new File(cacheDirBase);
+    File[] files = folder.listFiles();
+    for (File f : files) {
+      if (f.getName().startsWith("vertx-cache")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Test
   public void testVertxUtilsInitNullOptions() {
-    Vertx vertx = VertxUtils.init(null);
+    Vertx vertx = VertxUtils.init(null, null);
     Assert.assertNotEquals(null, vertx);
     VertxUtils.blockCloseVertx(vertx);
   }
@@ -91,9 +112,8 @@ public class TestVertxUtils {
   @Test
   public void testVertxUtilsInitWithOptions() {
     VertxOptions oOptions = new VertxOptions();
-    oOptions.getEventBusOptions().setClustered(false);
 
-    Vertx vertx = VertxUtils.init(oOptions);
+    Vertx vertx = VertxUtils.init(null, oOptions);
     Assert.assertNotEquals(null, vertx);
     VertxUtils.blockCloseVertx(vertx);
   }

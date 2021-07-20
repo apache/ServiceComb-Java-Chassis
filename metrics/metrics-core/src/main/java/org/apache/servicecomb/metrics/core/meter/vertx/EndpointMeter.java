@@ -109,7 +109,7 @@ public class EndpointMeter {
     measurements.add(newMeasurement(idConnections, msNow, connectCount - disconnectCount));
     measurements.add(newMeasurement(idBytesRead, msNow, (bytesRead - lastBytesRead) / secondInterval));
     measurements.add(newMeasurement(idBytesWritten, msNow, (bytesWritten - lastBytesWritten) / secondInterval));
-    measurements.add(newMeasurement(idRequests, msNow, (requests - lastRequests) / secondInterval));
+    measurements.add(newMeasurement(idRequests, msNow, requests - lastRequests));
     measurements.add(newMeasurement(idLatency, msNow,
         requests - lastRequests == 0 ? 0 : (latency - lastLatency) / (requests - lastRequests) * SNV_MILLI_SECONDS));
 

@@ -174,13 +174,4 @@ public class TestDefaultTcpServerMetrics {
     Assert.assertEquals(3, endpointMetric1.getBytesWritten());
     Assert.assertEquals(12, endpointMetric2.getBytesWritten());
   }
-
-  @SuppressWarnings("deprecation")
-  @Test
-  public void meaningless() {
-    Assert.assertTrue(metrics_listen1_server1.isEnabled());
-
-    metrics_listen1_server1.exceptionOccurred(null, null, null);
-    metrics_listen1_server1.close();
-  }
 }

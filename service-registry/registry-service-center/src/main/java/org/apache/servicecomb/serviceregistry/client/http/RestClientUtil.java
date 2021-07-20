@@ -33,10 +33,9 @@ import org.apache.servicecomb.serviceregistry.config.ServiceRegistryConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 
 final class RestClientUtil {
@@ -48,13 +47,13 @@ final class RestClientUtil {
 
   static final String HEADER_TENANT_NAME = "x-domain-name";
 
-  private List<AuthHeaderProvider> authHeaderProviders;
+  private final List<AuthHeaderProvider> authHeaderProviders;
 
-  private int requestTimeout;
+  private final int requestTimeout;
 
-  private String tenantName;
+  private final String tenantName;
 
-  private HttpClientPool httpClientPool;
+  private final HttpClientPool httpClientPool;
 
   RestClientUtil(ServiceRegistryConfig serviceRegistryConfig) {
     this.authHeaderProviders = serviceRegistryConfig.getAuthHeaderProviders();
@@ -92,65 +91,69 @@ final class RestClientUtil {
             .append(queryParams);
       }
 
-      @SuppressWarnings("deprecation")
-      HttpClientRequest httpClientRequest = httpClient
-          .request(httpMethod, ipPort.getPort(), ipPort.getHostOrIp(), url.toString(), response -> {
-            responseHandler.handle(new RestResponse(requestContext, response));
-          });
+      httpClient
+          .request(httpMethod, ipPort.getPort(), ipPort.getHostOrIp(), url.toString()).compose(httpClientRequest -> {
+        httpClientRequest.setTimeout(timeout);
 
-      httpClientRequest.setTimeout(timeout)
-          .exceptionHandler(e -> {
-            LOGGER.error("{} {} fail, endpoint is {}:{}, message: {}",
-                httpMethod,
-                url.toString(),
-                ipPort.getHostOrIp(),
-                ipPort.getPort(),
-                e.getMessage());
-            if (e instanceof UnknownHostException) {
-              // help analyses DNS problem
-              LOGGER.error("DNS resolve failed!", e);
-            }
-            responseHandler.handle(new RestResponse(requestContext, null));
-          });
+        //headers
+        Map<String, String> headers = defaultHeaders();
+        httpClientRequest.headers().addAll(headers);
 
-      //headers
-      Map<String, String> headers = defaultHeaders();
-      httpClientRequest.headers().addAll(headers);
-
-      if (requestParam.getHeaders() != null && requestParam.getHeaders().size() > 0) {
-        headers.putAll(requestParam.getHeaders());
-        for (Map.Entry<String, String> header : requestParam.getHeaders().entrySet()) {
-          httpClientRequest.putHeader(header.getKey(), header.getValue());
+        if (requestParam.getHeaders() != null && requestParam.getHeaders().size() > 0) {
+          headers.putAll(requestParam.getHeaders());
+          for (Map.Entry<String, String> header : requestParam.getHeaders().entrySet()) {
+            httpClientRequest.putHeader(header.getKey(), header.getValue());
+          }
         }
-      }
 
-      // cookies header
-      if (requestParam.getCookies() != null && requestParam.getCookies().size() > 0) {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (Map.Entry<String, String> cookie : requestParam.getCookies().entrySet()) {
-          stringBuilder.append(cookie.getKey())
-              .append("=")
-              .append(cookie.getValue())
-              .append("; ");
+        // cookies header
+        if (requestParam.getCookies() != null && requestParam.getCookies().size() > 0) {
+          StringBuilder stringBuilder = new StringBuilder();
+          for (Map.Entry<String, String> cookie : requestParam.getCookies().entrySet()) {
+            stringBuilder.append(cookie.getKey())
+                .append("=")
+                .append(cookie.getValue())
+                .append("; ");
+          }
+          httpClientRequest.putHeader("Cookie", stringBuilder.toString());
+          headers.put("Cookie", stringBuilder.toString());
         }
-        httpClientRequest.putHeader("Cookie", stringBuilder.toString());
-        headers.put("Cookie", stringBuilder.toString());
-      }
 
-      //SignAuth
-      SignRequest signReq = createSignRequest(requestContext.getMethod().toString(),
-          requestContext.getIpPort(),
-          requestContext.getParams(),
-          url.toString(),
-          headers);
-      httpClientRequest.headers().addAll(getSignAuthHeaders(signReq));
+        //SignAuth
+        SignRequest signReq = createSignRequest(requestContext.getMethod().toString(),
+            requestContext.getIpPort(),
+            requestContext.getParams(),
+            url.toString(),
+            headers);
+        httpClientRequest.headers().addAll(getSignAuthHeaders(signReq));
 
-      // body
-      if (httpMethod != HttpMethod.GET && requestParam.getBody() != null && requestParam.getBody().length > 0) {
-        httpClientRequest.end(Buffer.buffer(requestParam.getBody()));
-      } else {
-        httpClientRequest.end();
-      }
+        // body
+        if (httpMethod != HttpMethod.GET && requestParam.getBody() != null && requestParam.getBody().length > 0) {
+          return httpClientRequest.send(Buffer.buffer(requestParam.getBody()))
+              .compose(response -> {
+                responseHandler.handle(new RestResponse(requestContext, response));
+                return Future.succeededFuture();
+              });
+        } else {
+          return httpClientRequest.send()
+              .compose(response -> {
+                responseHandler.handle(new RestResponse(requestContext, response));
+                return Future.succeededFuture();
+              });
+        }
+      }).onFailure(failure -> {
+        LOGGER.error("{} {} fail, endpoint is {}:{}, message: {}",
+            httpMethod,
+            url.toString(),
+            ipPort.getHostOrIp(),
+            ipPort.getPort(),
+            failure.getMessage());
+        if (failure instanceof UnknownHostException) {
+          // help analyses DNS problem
+          LOGGER.error("DNS resolve failed!", failure);
+        }
+        responseHandler.handle(new RestResponse(requestContext, null));
+      });
     });
   }
 
@@ -168,7 +171,7 @@ final class RestClientUtil {
       Map<String, String> headers) {
     SignRequest signReq = new SignRequest();
     StringBuilder endpoint = new StringBuilder("https://" + ipPort.getHostOrIp());
-    endpoint.append(":" + ipPort.getPort());
+    endpoint.append(":").append(ipPort.getPort());
     endpoint.append(url);
     try {
       signReq.setEndpoint(new URI(endpoint.toString()));
@@ -184,10 +187,6 @@ final class RestClientUtil {
     return signReq;
   }
 
-  public void addDefaultHeaders(HttpClientRequest request) {
-    request.headers().addAll(getDefaultHeaders());
-  }
-
   private Map<String, String> defaultHeaders() {
     Map<String, String> headers = new HashMap<>();
     headers.put(HEADER_CONTENT_TYPE, "application/json");
@@ -195,10 +194,6 @@ final class RestClientUtil {
     headers.put(HEADER_TENANT_NAME, tenantName);
 
     return headers;
-  }
-
-  public MultiMap getDefaultHeaders() {
-    return MultiMap.caseInsensitiveMultiMap().addAll(defaultHeaders());
   }
 
   public void get(IpPort ipPort, String uri, RequestParam requestParam,

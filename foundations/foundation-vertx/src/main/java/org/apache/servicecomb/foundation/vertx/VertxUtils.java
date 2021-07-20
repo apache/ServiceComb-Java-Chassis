@@ -20,10 +20,10 @@ package org.apache.servicecomb.foundation.vertx;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.servicecomb.foundation.common.Holder;
@@ -33,8 +33,6 @@ import org.apache.servicecomb.foundation.vertx.client.ClientVerticle;
 import org.apache.servicecomb.foundation.vertx.stream.BufferInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.ReflectionUtils;
-import org.springframework.util.StringUtils;
 
 import com.netflix.config.DynamicPropertyFactory;
 
@@ -46,9 +44,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.impl.FileResolver;
-import io.vertx.core.impl.VertxImpl;
-import io.vertx.core.impl.VertxThreadFactory;
-import io.vertx.core.logging.SLF4JLogDelegateFactory;
+import io.vertx.core.impl.VertxBuilder;
+import io.vertx.core.impl.VertxThread;
+import io.vertx.core.spi.VertxThreadFactory;
 
 /**
  * VertxUtils
@@ -56,12 +54,6 @@ import io.vertx.core.logging.SLF4JLogDelegateFactory;
  *
  */
 public final class VertxUtils {
-  static {
-    // initialize vertx logger, this can be done multiple times
-    System.setProperty("vertx.logger-delegate-factory-class-name", SLF4JLogDelegateFactory.class.getName());
-    io.vertx.core.logging.LoggerFactory.initialise();
-  }
-
   private static final Logger LOGGER = LoggerFactory.getLogger(VertxUtils.class);
 
   private static final long BLOCKED_THREAD_CHECK_INTERVAL = Long.MAX_VALUE / 2;
@@ -118,10 +110,6 @@ public final class VertxUtils {
     return vertxMap.computeIfAbsent(name, vertxName -> init(vertxName, vertxOptions));
   }
 
-  public static Vertx init(VertxOptions vertxOptions) {
-    return init(null, vertxOptions);
-  }
-
   public static Vertx init(String name, VertxOptions vertxOptions) {
     if (vertxOptions == null) {
       vertxOptions = new VertxOptions();
@@ -134,24 +122,15 @@ public final class VertxUtils {
     }
 
     configureVertxFileCaching(vertxOptions);
-    Vertx vertx = Vertx.vertx(vertxOptions);
-    enhanceVertx(name, vertx);
-    return vertx;
-  }
 
-  private static void enhanceVertx(String name, Vertx vertx) {
-    if (StringUtils.isEmpty(name)) {
-      return;
-    }
-    Field field = ReflectionUtils.findField(VertxImpl.class, "eventLoopThreadFactory");
-    field.setAccessible(true);
-    VertxThreadFactory eventLoopThreadFactory = (VertxThreadFactory) ReflectionUtils.getField(field, vertx);
-
-    field = ReflectionUtils.findField(eventLoopThreadFactory.getClass(), "prefix");
-    field.setAccessible(true);
-
-    String prefix = (String) ReflectionUtils.getField(field, eventLoopThreadFactory);
-    ReflectionUtils.setField(field, eventLoopThreadFactory, name + "-" + prefix);
+    return new VertxBuilder(vertxOptions).threadFactory(new VertxThreadFactory() {
+      @Override
+      public VertxThread newVertxThread(Runnable target, String threadName, boolean worker, long maxExecTime,
+          TimeUnit maxExecTimeUnit) {
+        return VertxThreadFactory.super
+            .newVertxThread(target, name + "-" + threadName, worker, maxExecTime, maxExecTimeUnit);
+      }
+    }).init().vertx();
   }
 
   /**

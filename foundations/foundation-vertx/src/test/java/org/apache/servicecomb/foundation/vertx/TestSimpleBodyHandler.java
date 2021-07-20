@@ -28,17 +28,17 @@ import org.mockito.Mockito;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.impl.RoutingContextInternal;
 
 public class TestSimpleBodyHandler {
 
   private SimpleBodyHandler instance;
 
-  private RoutingContext context;
+  private RoutingContextInternal context;
 
   @Before
   public void setUp() throws Exception {
-    context = Mockito.mock(RoutingContext.class);
+    context = Mockito.mock(RoutingContextInternal.class);
     HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
     Mockito.when(context.request()).thenReturn(request);
     MultiMap multiMap = Mockito.mock(MultiMap.class);

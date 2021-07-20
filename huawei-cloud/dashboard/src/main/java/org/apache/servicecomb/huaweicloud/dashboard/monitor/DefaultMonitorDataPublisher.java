@@ -17,7 +17,6 @@
 
 package org.apache.servicecomb.huaweicloud.dashboard.monitor;
 
-import java.net.UnknownHostException;
 import java.util.HashMap;
 
 import org.apache.commons.io.IOUtils;
@@ -46,10 +45,11 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.Json;
 import io.vertx.core.net.ProxyOptions;
 
@@ -94,51 +94,43 @@ public class DefaultMonitorDataPublisher implements MonitorDataPublisher {
 
   private void doSend(String endpoint, String jsonData, String url, IpPort host, int times) {
     clientMgr.findThreadBindClientPool().runOnContext(client -> {
-      @SuppressWarnings("deprecation")
-      HttpClientRequest request = client.post(host.getPort(),
-          host.getHostOrIp(),
-          url,
-          rsp -> {
-            rsp.exceptionHandler(e -> LOGGER.warn("publish error ", e));
-            if (rsp.statusCode() != HttpResponseStatus.OK.code()) {
-              if (times < MonitorConstant.MAX_RETRY_TIMES
-                  && rsp.statusCode() == HttpResponseStatus.BAD_GATEWAY.code()) {
-                doSend(endpoint, jsonData, url, host, times + 1);
-                return;
-              }
-              rsp.bodyHandler(buffer -> {
-                LOGGER.warn("Send data to url {} failed and status line is {}",
-                    url,
-                    rsp.statusCode());
-                LOGGER.warn("message: {}", buffer);
-              });
-              EventManager.post(new MonitorFailEvent("send monitor data fail."));
-            } else {
-              EventManager.post(new MonitorSuccEvent());
-            }
-          });
-      request.setTimeout(MonitorConstant.getInterval() / MonitorConstant.MAX_RETRY_TIMES);
-      request.exceptionHandler(e -> {
-        EventManager.post(new MonitorFailEvent("send monitor data fail."));
-        LOGGER.warn("Send monitor data to {} failed , {}", endpoint, e.getMessage());
-        if (e instanceof UnknownHostException) {
-          LOGGER.error("DNS resolve failed!", e);
-        }
-      });
-
-      try {
-        SignRequest signReq = SignUtil.createSignRequest(request.method().toString(),
-            endpoint + url,
-            new HashMap<>(),
-            IOUtils.toInputStream(jsonData, "UTF-8"));
-        SignUtil.getAuthHeaderProviders().forEach(authHeaderProvider -> {
-          request.headers().addAll(authHeaderProvider.getSignAuthHeaders(signReq));
-        });
+      client.request(HttpMethod.POST, host.getPort(), host.getHostOrIp(), url).compose(request -> {
         request.headers().add("environment", RegistryUtils.getMicroservice().getEnvironment());
-      } catch (Exception e) {
-        LOGGER.error("sign request error!", e);
-      }
-      request.end(jsonData);
+        request.setTimeout(MonitorConstant.getInterval() / MonitorConstant.MAX_RETRY_TIMES);
+        try {
+          SignRequest signReq = SignUtil.createSignRequest(request.getMethod().toString(),
+              endpoint + url,
+              new HashMap<>(),
+              IOUtils.toInputStream(jsonData, "UTF-8"));
+          SignUtil.getAuthHeaderProviders().forEach(authHeaderProvider -> {
+            request.headers().addAll(authHeaderProvider.getSignAuthHeaders(signReq));
+          });
+        } catch (Exception e) {
+          LOGGER.error("sign request error!", e);
+        }
+        return request.send(jsonData).compose(rsp -> {
+          if (rsp.statusCode() != HttpResponseStatus.OK.code()) {
+            if (times < MonitorConstant.MAX_RETRY_TIMES
+                && rsp.statusCode() == HttpResponseStatus.BAD_GATEWAY.code()) {
+              doSend(endpoint, jsonData, url, host, times + 1);
+              return Future.succeededFuture();
+            }
+            return rsp.body().compose(buffer -> {
+              LOGGER.warn("Send data to url {} failed and status line is {}",
+                  url,
+                  rsp.statusCode());
+              LOGGER.warn("message: {}", buffer);
+              return Future.succeededFuture();
+            });
+          } else {
+            EventManager.post(new MonitorSuccEvent());
+          }
+          return Future.succeededFuture();
+        }).onFailure(failure -> {
+          EventManager.post(new MonitorFailEvent("send monitor data fail."));
+          LOGGER.warn("Send monitor data to {} failed , {}", endpoint, failure);
+        });
+      });
     });
   }
 

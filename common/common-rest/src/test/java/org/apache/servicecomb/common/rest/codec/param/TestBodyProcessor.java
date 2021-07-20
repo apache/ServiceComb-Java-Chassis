@@ -44,7 +44,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import mockit.Expectations;
 import mockit.Mock;
 import mockit.MockUp;
@@ -109,7 +109,7 @@ public class TestBodyProcessor {
 
   @Before
   public void before() {
-    headers = new VertxHttpHeaders();
+    headers = new HeadersMultiMap();
   }
 
   @Test

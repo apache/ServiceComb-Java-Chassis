@@ -29,7 +29,7 @@ import org.mockito.Mockito;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.web.RoutingContext;
 
 public class ResponseHeaderItemTest {
@@ -64,7 +64,7 @@ public class ResponseHeaderItemTest {
 
   @Test
   public void serverFormattedElement() {
-    VertxHttpHeaders headers = new VertxHttpHeaders();
+    HeadersMultiMap headers = new HeadersMultiMap();
     String headerValue = "headerValue";
     headers.add(VAR_NAME, headerValue);
     when(routingContext.response()).thenReturn(serverResponse);
@@ -122,7 +122,7 @@ public class ResponseHeaderItemTest {
 
   @Test
   public void serverFormattedElementOnNotFound() {
-    VertxHttpHeaders headers = new VertxHttpHeaders();
+    HeadersMultiMap headers = new HeadersMultiMap();
     String headerValue = "headerValue";
     headers.add("anotherHeader", headerValue);
     when(routingContext.response()).thenReturn(serverResponse);

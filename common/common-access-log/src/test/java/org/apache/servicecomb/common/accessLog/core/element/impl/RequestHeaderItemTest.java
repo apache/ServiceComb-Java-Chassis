@@ -35,7 +35,7 @@ import org.mockito.Mockito;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.web.RoutingContext;
 
 public class RequestHeaderItemTest {
@@ -78,7 +78,7 @@ public class RequestHeaderItemTest {
 
   @Test
   public void serverFormattedElement() {
-    VertxHttpHeaders headers = new VertxHttpHeaders();
+    HeadersMultiMap headers = new HeadersMultiMap();
     String testValue = "testValue";
     headers.add(VAR_NAME, testValue);
     when(routingContext.request()).thenReturn(serverRequest);
@@ -129,7 +129,7 @@ public class RequestHeaderItemTest {
 
   @Test
   public void serverFormattedElementIfNotFound() {
-    VertxHttpHeaders headers = new VertxHttpHeaders();
+    HeadersMultiMap headers = new HeadersMultiMap();
     String testValue = "testValue";
     headers.add("anotherKey", testValue);
     when(routingContext.request()).thenReturn(serverRequest);

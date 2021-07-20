@@ -15,17 +15,22 @@
  * limitations under the License.
  */
 
-package io.vertx.core.http.impl;
+package org.apache.servicecomb.foundation.vertx.metrics.metric;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.vertx.core.impl.ContextInternal;
-import io.vertx.core.impl.VertxInternal;
-import io.vertx.core.spi.metrics.NetworkMetrics;
+import java.util.concurrent.atomic.LongAdder;
 
-public abstract  class Http1xConnectionBaseEx<S extends WebSocketImplBase<S>> extends Http1xConnectionBase<S>{
-  public Http1xConnectionBaseEx(VertxInternal vertx, ChannelHandlerContext chctx,
-      ContextInternal context) {
-    super(vertx, chctx, context);
+public class DefaultClientTaskMetric {
+  private LongAdder queue = new LongAdder();
+
+  public long getQueueCount() {
+    return queue.longValue();
   }
-  
+
+  public void enqueueRequest() {
+    queue.increment();
+  }
+
+  public void dequeueRequest() {
+    queue.decrement();
+  }
 }

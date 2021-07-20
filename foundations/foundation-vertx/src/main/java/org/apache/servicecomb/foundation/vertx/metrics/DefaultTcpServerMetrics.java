@@ -56,20 +56,4 @@ public class DefaultTcpServerMetrics implements TCPMetrics<DefaultTcpSocketMetri
   public void bytesWritten(DefaultTcpSocketMetric socketMetric, SocketAddress remoteAddress, long numberOfBytes) {
     endpointMetric.addBytesWritten(numberOfBytes);
   }
-
-  @Override
-  public void exceptionOccurred(DefaultTcpSocketMetric socketMetric, SocketAddress remoteAddress, Throwable t) {
-
-  }
-
-  @Override
-  @Deprecated
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
-  public void close() {
-
-  }
 }

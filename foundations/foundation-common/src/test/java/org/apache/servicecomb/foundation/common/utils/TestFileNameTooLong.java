@@ -32,7 +32,7 @@ public class TestFileNameTooLong {
 
   // ensure the maximum file path do not exceed. now set to 200(some old windows max 260)
   // smaller is better, can refactor in future
-  // NOTICE: compiled classes or other generated files like surefire reports do not exceed this too
+  // NOTICE: compiled classes or other generated files like surefire reports may exceed this size
   private static final int MAN_FILE_SIZE = 200;
 
   @Test
@@ -60,13 +60,13 @@ public class TestFileNameTooLong {
       if (folder.getAbsolutePath().length() >= MAN_FILE_SIZE + baseLenght) {
         holder.add(folder.getAbsolutePath());
       }
-    } else if (folder.isDirectory()) {
+    } else if (folder.isDirectory() && !"target".equals(folder.getName())) {
       File[] children = folder.listFiles();
       for (File child : children) {
         findLongFileName(child, holder, baseLenght);
       }
     } else {
-      LOGGER.error("unexpected file :" + folder.getName());
+      return;
     }
   }
 }

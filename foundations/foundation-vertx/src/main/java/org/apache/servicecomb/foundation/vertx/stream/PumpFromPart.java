@@ -26,6 +26,8 @@ import javax.servlet.http.Part;
 import org.apache.commons.io.IOUtils;
 import org.apache.servicecomb.foundation.vertx.http.DownloadUtils;
 import org.apache.servicecomb.foundation.vertx.http.ReadStreamPart;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
@@ -34,6 +36,8 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 
 public class PumpFromPart {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PumpFromPart.class);
+
   private Context context;
 
   private Part part;
@@ -67,6 +71,9 @@ public class PumpFromPart {
     return prepareReadStream()
         .thenCompose(readStream -> new PumpCommon().pump(context, readStream, writeStream, throwableHandler))
         .whenComplete((v, e) -> {
+          if (e != null) {
+            LOGGER.error("to write stream failed.", e);
+          }
           DownloadUtils.clearPartResource(part);
           // PumpImpl will add drainHandler to writeStream,
           // in order to support write multiple files to same writeStream,

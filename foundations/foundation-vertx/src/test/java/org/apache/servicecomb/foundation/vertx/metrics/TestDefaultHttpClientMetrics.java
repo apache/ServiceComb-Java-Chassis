@@ -17,7 +17,9 @@
 package org.apache.servicecomb.foundation.vertx.metrics;
 
 import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultClientEndpointMetric;
-import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultHttpSocketMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultEndpointMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultRequestMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultTcpSocketMetric;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -27,9 +29,9 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
+import io.vertx.core.spi.observability.HttpRequest;
 import mockit.Mock;
 import mockit.MockUp;
 import mockit.Mocked;
@@ -63,21 +65,29 @@ public class TestDefaultHttpClientMetrics {
 
   SocketAddress address2 = new SocketAddressImpl(port2, host);
 
-  DefaultClientEndpointMetric endpointMetric_a_1;
+  DefaultClientMetrics clientMetrics_a_1;
 
-  DefaultHttpSocketMetric socketMetric_a_1;
+  DefaultEndpointMetric endpointMetric_a_1;
 
-  DefaultClientEndpointMetric endpointMetric_a_2;
+  DefaultTcpSocketMetric socketMetric_a_1;
 
-  DefaultHttpSocketMetric socketMetric_a_2;
+  DefaultClientMetrics clientMetrics_a_2;
 
-  DefaultClientEndpointMetric endpointMetric_b_1;
+  DefaultEndpointMetric endpointMetric_a_2;
 
-  DefaultHttpSocketMetric socketMetric_b_1;
+  DefaultTcpSocketMetric socketMetric_a_2;
 
-  DefaultClientEndpointMetric endpointMetric_b_2;
+  DefaultClientMetrics clientMetrics_b_1;
 
-  DefaultHttpSocketMetric socketMetric_b_2;
+  DefaultEndpointMetric endpointMetric_b_1;
+
+  DefaultTcpSocketMetric socketMetric_b_1;
+
+  DefaultClientMetrics clientMetrics_b_2;
+
+  DefaultEndpointMetric endpointMetric_b_2;
+
+  DefaultTcpSocketMetric socketMetric_b_2;
 
   static long nanoTime;
 
@@ -91,11 +101,11 @@ public class TestDefaultHttpClientMetrics {
     };
   }
 
-  private static DefaultHttpSocketMetric initSocketMetric(DefaultHttpClientMetrics metrics,
+  private static DefaultTcpSocketMetric initSocketMetric(DefaultClientMetrics clientMetrics,
+      DefaultHttpClientMetrics metrics,
       SocketAddress address) {
-    DefaultClientEndpointMetric endpointMetric = metrics.createEndpoint(address.host(), address.port(), 0);
-    DefaultHttpSocketMetric socketMetric = metrics.connected(address, address.toString());
-    metrics.endpointConnected(endpointMetric, socketMetric);
+    DefaultTcpSocketMetric socketMetric = metrics.connected(address, address.toString());
+    metrics.endpointConnected(clientMetrics);
     return socketMetric;
   }
 
@@ -109,14 +119,20 @@ public class TestDefaultHttpClientMetrics {
 
     nanoTime = 1;
 
-    socketMetric_a_1 = initSocketMetric(clientMetrics_a, address1);
+    clientMetrics_a_1 = clientMetrics_a.createEndpointMetrics(address1, 0);
+    socketMetric_a_1 = initSocketMetric(clientMetrics_a_1, clientMetrics_a, address1);
     endpointMetric_a_1 = socketMetric_a_1.getEndpointMetric();
-    socketMetric_a_2 = initSocketMetric(clientMetrics_a, address2);
+
+    clientMetrics_a_2 = clientMetrics_a.createEndpointMetrics(address2, 0);
+    socketMetric_a_2 = initSocketMetric(clientMetrics_a_2, clientMetrics_a, address2);
     endpointMetric_a_2 = socketMetric_a_2.getEndpointMetric();
 
-    socketMetric_b_1 = initSocketMetric(clientMetrics_b, address1);
+    clientMetrics_b_1 = clientMetrics_b.createEndpointMetrics(address1, 0);
+    socketMetric_b_1 = initSocketMetric(clientMetrics_b_1, clientMetrics_b, address1);
     endpointMetric_b_1 = socketMetric_b_1.getEndpointMetric();
-    socketMetric_b_2 = initSocketMetric(clientMetrics_b, address2);
+
+    clientMetrics_b_2 = clientMetrics_b.createEndpointMetrics(address2, 0);
+    socketMetric_b_2 = initSocketMetric(clientMetrics_b_2, clientMetrics_b, address2);
     endpointMetric_b_2 = socketMetric_b_2.getEndpointMetric();
   }
 
@@ -183,7 +199,7 @@ public class TestDefaultHttpClientMetrics {
       nanoTime = 2;
       clientMetrics_a.disconnected(socketMetric_a_1, null);
 
-      Assert.assertEquals(2, endpointMetric_a_1.getLastNanoTime());
+      Assert.assertEquals(2, ((DefaultClientEndpointMetric) endpointMetric_a_1).getLastNanoTime());
       Assert.assertFalse(socketMetric_a_1.isConnected());
       Assert.assertEquals(1, socketMetric_a_1.getConnectedTime());
       Assert.assertEquals(2, socketMetric_a_1.getEndpointMetric().getConnectCount());
@@ -202,7 +218,7 @@ public class TestDefaultHttpClientMetrics {
       nanoTime = 4;
       clientMetrics_a.disconnected(socketMetric_a_2, null);
 
-      Assert.assertEquals(4, endpointMetric_a_2.getLastNanoTime());
+      Assert.assertEquals(4, ((DefaultClientEndpointMetric) endpointMetric_a_2).getLastNanoTime());
       Assert.assertFalse(socketMetric_a_2.isConnected());
       Assert.assertEquals(1, socketMetric_a_2.getConnectedTime());
       Assert.assertEquals(2, socketMetric_a_2.getEndpointMetric().getConnectCount());
@@ -221,7 +237,7 @@ public class TestDefaultHttpClientMetrics {
       nanoTime = 6;
       clientMetrics_b.disconnected(socketMetric_b_1, null);
 
-      Assert.assertEquals(6, endpointMetric_b_1.getLastNanoTime());
+      Assert.assertEquals(6, ((DefaultClientEndpointMetric) endpointMetric_b_1).getLastNanoTime());
       Assert.assertFalse(socketMetric_b_1.isConnected());
       Assert.assertEquals(1, socketMetric_b_1.getConnectedTime());
       Assert.assertEquals(2, socketMetric_b_1.getEndpointMetric().getConnectCount());
@@ -240,7 +256,7 @@ public class TestDefaultHttpClientMetrics {
       nanoTime = 7;
       clientMetrics_b.disconnected(socketMetric_b_2, null);
 
-      Assert.assertEquals(7, endpointMetric_b_2.getLastNanoTime());
+      Assert.assertEquals(7, ((DefaultClientEndpointMetric) endpointMetric_b_2).getLastNanoTime());
       Assert.assertFalse(socketMetric_b_2.isConnected());
       Assert.assertEquals(1, socketMetric_b_2.getConnectedTime());
       Assert.assertEquals(2, socketMetric_b_2.getEndpointMetric().getConnectCount());
@@ -251,23 +267,23 @@ public class TestDefaultHttpClientMetrics {
 
   @Test
   public void bytesReadAndWritten() {
-    DefaultHttpSocketMetric socketMetric = clientMetrics_a.connected(address1, host);
-    clientMetrics_a.endpointConnected(endpointMetric_a_1, socketMetric);
+    DefaultTcpSocketMetric socketMetric = clientMetrics_a.connected(address1, host);
+    clientMetrics_a.endpointConnected(clientMetrics_a_1);
     clientMetrics_a.bytesRead(socketMetric, address1, 1);
     clientMetrics_a.bytesWritten(socketMetric, address1, 1);
 
     socketMetric = clientMetrics_a.connected(address2, host);
-    clientMetrics_a.endpointConnected(endpointMetric_a_2, socketMetric);
+    clientMetrics_a.endpointConnected(clientMetrics_a_2);
     clientMetrics_a.bytesRead(socketMetric, address2, 1);
     clientMetrics_a.bytesWritten(socketMetric, address2, 1);
 
     socketMetric = clientMetrics_b.connected(address1, host);
-    clientMetrics_b.endpointConnected(endpointMetric_b_1, socketMetric);
+    clientMetrics_b.endpointConnected(clientMetrics_b_1);
     clientMetrics_b.bytesRead(socketMetric, address1, 1);
     clientMetrics_b.bytesWritten(socketMetric, address1, 1);
 
     socketMetric = clientMetrics_b.connected(address2, host);
-    clientMetrics_b.endpointConnected(endpointMetric_b_2, socketMetric);
+    clientMetrics_b.endpointConnected(clientMetrics_b_2);
     clientMetrics_b.bytesRead(socketMetric, address2, 1);
     clientMetrics_b.bytesWritten(socketMetric, address2, 1);
 
@@ -278,15 +294,15 @@ public class TestDefaultHttpClientMetrics {
   }
 
   @Test
-  public void requestBegin(@Mocked HttpClientRequest request) {
-    DefaultHttpSocketMetric socketMetric = clientMetrics_a.connected(address1, host);
+  public void requestBegin(@Mocked HttpRequest request) {
+    DefaultTcpSocketMetric socketMetric = clientMetrics_a.connected(address1, host);
 
     nanoTime = 2;
-    clientMetrics_a.requestBegin(endpointMetric_a_1, socketMetric, address1, address1, request);
+    DefaultRequestMetric requestMetric = clientMetrics_a_1.requestBegin("/ui", request);
     nanoTime = 3;
-    clientMetrics_a.requestEnd(socketMetric);
+    clientMetrics_a_1.requestEnd(requestMetric);
 
-    Assert.assertEquals(2, socketMetric.getRequestBeginTime());
-    Assert.assertEquals(3, socketMetric.getRequestEndTime());
+    Assert.assertEquals(2, requestMetric.getRequestBeginTime());
+    Assert.assertEquals(3, requestMetric.getRequestEndTime());
   }
 }

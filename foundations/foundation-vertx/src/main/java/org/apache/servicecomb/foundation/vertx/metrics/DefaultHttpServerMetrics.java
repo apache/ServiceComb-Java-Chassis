@@ -16,20 +16,20 @@
  */
 package org.apache.servicecomb.foundation.vertx.metrics;
 
-import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultHttpSocketMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultRequestMetric;
 import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultServerEndpointMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultTcpSocketMetric;
 
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.spi.metrics.HttpServerMetrics;
+import io.vertx.core.spi.observability.HttpRequest;
+import io.vertx.core.spi.observability.HttpResponse;
 
 /**
  * important: not singleton, every HttpServer instance relate to an HttpServerMetrics instance
  */
-public class DefaultHttpServerMetrics implements HttpServerMetrics<DefaultHttpSocketMetric, Object, DefaultHttpSocketMetric> {
+public class DefaultHttpServerMetrics implements
+    HttpServerMetrics<DefaultRequestMetric, Object, DefaultTcpSocketMetric> {
   private final DefaultServerEndpointMetric endpointMetric;
 
   public DefaultHttpServerMetrics(DefaultServerEndpointMetric endpointMetric) {
@@ -41,71 +41,45 @@ public class DefaultHttpServerMetrics implements HttpServerMetrics<DefaultHttpSo
   }
 
   @Override
-  public DefaultHttpSocketMetric requestBegin(DefaultHttpSocketMetric socketMetric, HttpServerRequest request) {
-    socketMetric.requestBegin();
-    return socketMetric;
+  public DefaultRequestMetric requestBegin(DefaultTcpSocketMetric socketMetric, HttpRequest request) {
+    DefaultRequestMetric requestMetric = new DefaultRequestMetric(socketMetric.getEndpointMetric());
+    requestMetric.requestBegin();
+    return requestMetric;
   }
 
   @Override
-  public void requestReset(DefaultHttpSocketMetric requestMetric) {
-
+  public void requestEnd(DefaultRequestMetric requestMetric, HttpRequest request, long bytesRead) {
+    requestMetric.requestEnd();
   }
 
   @Override
-  public DefaultHttpSocketMetric responsePushed(DefaultHttpSocketMetric socketMetric, HttpMethod method, String uri,
-      HttpServerResponse response) {
-    return null;
+  public void responseBegin(DefaultRequestMetric requestMetric, HttpResponse response) {
+    requestMetric.responseBegin();
   }
 
   @Override
-  public void responseEnd(DefaultHttpSocketMetric requestMetric, HttpServerResponse response) {
+  public void responseEnd(DefaultRequestMetric requestMetric, HttpResponse response, long bytesWritten) {
     requestMetric.responseEnd();
   }
 
   @Override
-  public Object connected(DefaultHttpSocketMetric socketMetric, DefaultHttpSocketMetric requestMetric, ServerWebSocket serverWebSocket) {
-    return null;
-  }
-
-  @Override
-  public void disconnected(Object serverWebSocketMetric) {
-
-  }
-
-  @Override
-  public DefaultHttpSocketMetric connected(SocketAddress remoteAddress, String remoteName) {
+  public DefaultTcpSocketMetric connected(SocketAddress remoteAddress, String remoteName) {
     endpointMetric.onConnect();
-    return new DefaultHttpSocketMetric(endpointMetric);
+    return new DefaultTcpSocketMetric(endpointMetric);
   }
 
   @Override
-  public void disconnected(DefaultHttpSocketMetric socketMetric, SocketAddress remoteAddress) {
+  public void disconnected(DefaultTcpSocketMetric socketMetric, SocketAddress remoteAddress) {
     socketMetric.onDisconnect();
   }
 
   @Override
-  public void bytesRead(DefaultHttpSocketMetric socketMetric, SocketAddress remoteAddress, long numberOfBytes) {
-    endpointMetric.addBytesRead(numberOfBytes);
+  public void bytesRead(DefaultTcpSocketMetric socketMetric, SocketAddress remoteAddress, long numberOfBytes) {
+    socketMetric.getEndpointMetric().addBytesRead(numberOfBytes);
   }
 
   @Override
-  public void bytesWritten(DefaultHttpSocketMetric socketMetric, SocketAddress remoteAddress, long numberOfBytes) {
-    endpointMetric.addBytesWritten(numberOfBytes);
-  }
-
-  @Override
-  public void exceptionOccurred(DefaultHttpSocketMetric socketMetric, SocketAddress remoteAddress, Throwable t) {
-
-  }
-
-  @Override
-  @Deprecated
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
-  public void close() {
-
+  public void bytesWritten(DefaultTcpSocketMetric socketMetric, SocketAddress remoteAddress, long numberOfBytes) {
+    socketMetric.getEndpointMetric().addBytesWritten(numberOfBytes);
   }
 }

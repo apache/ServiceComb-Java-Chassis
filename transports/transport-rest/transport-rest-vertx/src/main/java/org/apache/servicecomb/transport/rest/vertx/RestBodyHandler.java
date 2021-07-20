@@ -27,25 +27,25 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.ws.rs.core.Response.Status;
-
 import org.apache.servicecomb.swagger.invocation.exception.CommonExceptionData;
 import org.apache.servicecomb.swagger.invocation.exception.ExceptionFactory;
-import org.apache.servicecomb.swagger.invocation.exception.InvocationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.file.FileSystem;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.impl.BodyHandlerImpl;
 import io.vertx.ext.web.impl.FileUploadImpl;
+import io.vertx.ext.web.impl.RoutingContextInternal;
 
 /**
  * copy from io.vertx.ext.web.handler.impl.BodyHandlerImpl
@@ -56,8 +56,6 @@ import io.vertx.ext.web.impl.FileUploadImpl;
 public class RestBodyHandler implements BodyHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BodyHandlerImpl.class);
-
-  private static final String BODY_HANDLED = "__body-handled";
 
   private long bodyLimit = DEFAULT_BODY_LIMIT;
 
@@ -107,13 +105,12 @@ public class RestBodyHandler implements BodyHandler {
     }
 
     // we need to keep state since we can be called again on reroute
-    Boolean handled = context.get(BODY_HANDLED);
-    if (handled == null || !handled) {
+    if (!((RoutingContextInternal) context).seenHandler(RoutingContextInternal.BODY_HANDLER)) {
       long contentLength = isPreallocateBodyBuffer ? parseContentLengthHeader(request) : -1;
       BHandler handler = new BHandler(context, contentLength);
       request.handler(handler);
       request.endHandler(v -> handler.end());
-      context.put(BODY_HANDLED, true);
+      ((RoutingContextInternal) context).visitHandler(RoutingContextInternal.BODY_HANDLER);
     } else {
       // on reroute we need to re-merge the form params if that was desired
       if (mergeFormAttributes && request.isExpectMultipart()) {
@@ -167,7 +164,7 @@ public class RestBodyHandler implements BodyHandler {
     }
     try {
       long parsedContentLength = Long.parseLong(contentLength);
-      return parsedContentLength < 0 ? null : parsedContentLength;
+      return parsedContentLength < 0 ? -1 : parsedContentLength;
     } catch (NumberFormatException ex) {
       return -1;
     }
@@ -176,26 +173,36 @@ public class RestBodyHandler implements BodyHandler {
   private class BHandler implements Handler<Buffer> {
     private static final int MAX_PREALLOCATED_BODY_BUFFER_BYTES = 65535;
 
-    private RoutingContext context;
+    final RoutingContext context;
 
-    private Buffer body;
+    final long contentLength;
 
-    private boolean failed;
+    Buffer body;
 
-    private AtomicInteger uploadCount = new AtomicInteger();
+    boolean failed;
+
+    AtomicInteger uploadCount = new AtomicInteger();
 
     AtomicBoolean cleanup = new AtomicBoolean(false);
 
-    private boolean ended;
+    boolean ended;
 
-    private long uploadSize = 0L;
+    long uploadSize = 0L;
 
-    private final boolean isMultipart;
+    final boolean isMultipart;
 
-    private final boolean isUrlEncoded;
+    final boolean isUrlEncoded;
 
-    BHandler(RoutingContext context, long contentLength) {
+    public BHandler(RoutingContext context, long contentLength) {
       this.context = context;
+      this.contentLength = contentLength;
+      // the request clearly states that there should
+      // be a body, so we respect the client and ensure
+      // that the body will not be null
+      if (contentLength != -1) {
+        initBodyBuffer();
+      }
+
       Set<FileUpload> fileUploads = context.fileUploads();
 
       final String contentType = context.request().getHeader(HttpHeaders.CONTENT_TYPE);
@@ -207,8 +214,6 @@ public class RestBodyHandler implements BodyHandler {
         isMultipart = lowerCaseContentType.startsWith(HttpHeaderValues.MULTIPART_FORM_DATA.toString());
         isUrlEncoded = lowerCaseContentType.startsWith(HttpHeaderValues.APPLICATION_X_WWW_FORM_URLENCODED.toString());
       }
-
-      initBodyBuffer(contentLength);
 
       if (isMultipart || isUrlEncoded) {
         context.request().setExpectMultipart(true);
@@ -229,8 +234,8 @@ public class RestBodyHandler implements BodyHandler {
             long size = uploadSize + upload.size();
             if (size > bodyLimit) {
               failed = true;
-              context.fail(new InvocationException(Status.REQUEST_ENTITY_TOO_LARGE,
-                  Status.REQUEST_ENTITY_TOO_LARGE.getReasonPhrase()));
+              cancelAndCleanupFileUploads();
+              context.fail(413);
               return;
             }
           }
@@ -238,24 +243,33 @@ public class RestBodyHandler implements BodyHandler {
             // we actually upload to a file with a generated filename
             uploadCount.incrementAndGet();
             String uploadedFileName = new File(uploadsDir, UUID.randomUUID().toString()).getPath();
-            upload.streamToFileSystem(uploadedFileName);
             FileUploadImpl fileUpload = new FileUploadImpl(uploadedFileName, upload);
             fileUploads.add(fileUpload);
-            upload.exceptionHandler(t -> {
-              deleteFileUploads();
-              context.fail(t);
+            Future<Void> fut = upload.streamToFileSystem(uploadedFileName);
+            fut.onComplete(ar -> {
+              if (fut.succeeded()) {
+                uploadEnded();
+              } else {
+                cancelAndCleanupFileUploads();
+                context.fail(ar.cause());
+              }
             });
-            upload.endHandler(v -> uploadEnded());
           }
         });
       }
+
       context.request().exceptionHandler(t -> {
-        deleteFileUploads();
-        context.fail(t);
+        cancelAndCleanupFileUploads();
+        if (t instanceof DecoderException) {
+          // bad request
+          context.fail(400, t.getCause());
+        } else {
+          context.fail(t);
+        }
       });
     }
 
-    private void initBodyBuffer(long contentLength) {
+    private void initBodyBuffer() {
       int initialBodyBufferSize;
       if (contentLength < 0) {
         initialBodyBufferSize = DEFAULT_INITIAL_BODY_BUFFER_SIZE;
@@ -292,15 +306,16 @@ public class RestBodyHandler implements BodyHandler {
       uploadSize += buff.length();
       if (bodyLimit != -1 && uploadSize > bodyLimit) {
         failed = true;
-        // enqueue a delete for the error uploads
-        context.fail(new InvocationException(Status.REQUEST_ENTITY_TOO_LARGE,
-            Status.REQUEST_ENTITY_TOO_LARGE.getReasonPhrase()));
-        context.vertx().runOnContext(v -> deleteFileUploads());
+        cancelAndCleanupFileUploads();
+        context.fail(413);
       } else {
         // multipart requests will not end up in the request body
         // url encoded should also not, however jQuery by default
         // post in urlencoded even if the payload is something else
         if (!isMultipart /* && !isUrlEncoded */) {
+          if (body == null) {
+            initBodyBuffer();
+          }
           body.appendBuffer(buff);
         }
       }
@@ -326,13 +341,14 @@ public class RestBodyHandler implements BodyHandler {
     }
 
     void doEnd() {
+
       if (failed) {
-        deleteFileUploads();
+        cancelAndCleanupFileUploads();
         return;
       }
 
       if (deleteUploadedFilesOnEnd) {
-        context.addBodyEndHandler(x -> deleteFileUploads());
+        context.addBodyEndHandler(x -> cancelAndCleanupFileUploads());
       }
 
       HttpServerRequest req = context.request();
@@ -340,26 +356,27 @@ public class RestBodyHandler implements BodyHandler {
         req.params().addAll(req.formAttributes());
       }
       context.setBody(body);
+      // release body as it may take lots of memory
+      body = null;
+
       context.next();
     }
 
-    private void deleteFileUploads() {
+    /**
+     * Cancel all unfinished file upload in progress and delete all uploaded files.
+     */
+    private void cancelAndCleanupFileUploads() {
       if (cleanup.compareAndSet(false, true) && handleFileUploads) {
         for (FileUpload fileUpload : context.fileUploads()) {
           FileSystem fileSystem = context.vertx().fileSystem();
-          String uploadedFileName = fileUpload.uploadedFileName();
-          fileSystem.exists(uploadedFileName, existResult -> {
-            if (existResult.failed()) {
-              LOGGER.warn("Could not detect if uploaded file exists, not deleting: " + uploadedFileName,
-                  existResult.cause());
-            } else if (existResult.result()) {
-              fileSystem.delete(uploadedFileName, deleteResult -> {
-                if (deleteResult.failed()) {
-                  LOGGER.warn("Delete of uploaded file failed: " + uploadedFileName, deleteResult.cause());
-                }
-              });
-            }
-          });
+          if (!fileUpload.cancel()) {
+            String uploadedFileName = fileUpload.uploadedFileName();
+            fileSystem.delete(uploadedFileName, deleteResult -> {
+              if (deleteResult.failed()) {
+                LOGGER.warn("Delete of uploaded file failed: " + uploadedFileName, deleteResult.cause());
+              }
+            });
+          }
         }
       }
     }

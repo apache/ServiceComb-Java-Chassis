@@ -79,7 +79,7 @@ public class VertxClientRequestToHttpServletRequest extends AbstractHttpServletR
 
   @Override
   public String getMethod() {
-    return clientRequest.method().name();
+    return clientRequest.getMethod().name();
   }
 
   @Override

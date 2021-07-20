@@ -252,9 +252,13 @@ public class VertxServerRequestToHttpServletRequest extends AbstractHttpServletR
 
   @Override
   public ServletInputStream getInputStream() {
-    if (inputStream == null) {
-      inputStream = new BufferInputStream(context.getBody().getByteBuf());
+    if (inputStream != null) {
+      return inputStream;
     }
+    if (context.getBody() == null) {
+      return null;
+    }
+    inputStream = new BufferInputStream(context.getBody().getByteBuf());
     return inputStream;
   }
 
@@ -263,9 +267,17 @@ public class VertxServerRequestToHttpServletRequest extends AbstractHttpServletR
     return EMPTY_ASYNC_CONTEXT;
   }
 
+  // TODO test
+  Set<FileUpload> fileUploads(RoutingContext context) {
+    Set<FileUpload> result = context.fileUploads();
+    result.forEach(
+        f -> LOGGER.info("file uploaded info {}/-{}/-{}/-{}", f.fileName(), f.uploadedFileName(), f.name(), f.size()));
+    return result;
+  }
+
   @Override
   public Part getPart(String name) {
-    Optional<FileUpload> upload = context.fileUploads()
+    Optional<FileUpload> upload = fileUploads(context)
         .stream()
         .filter(fileUpload -> fileUpload.name().equals(name))
         .findFirst();
@@ -280,7 +292,7 @@ public class VertxServerRequestToHttpServletRequest extends AbstractHttpServletR
 
   @Override
   public Collection<Part> getParts() {
-    Set<FileUpload> fileUploads = context.fileUploads();
+    Set<FileUpload> fileUploads = fileUploads(context);
     return fileUploads.stream().map(FileUploadPart::new).collect(Collectors.toList());
   }
 

@@ -54,12 +54,12 @@ public class HttpMethodAccessItem implements AccessLogItem<RoutingContext> {
       return;
     }
     RestClientRequestImpl restRequestImpl = (RestClientRequestImpl) finishEvent.getInvocation().getHandlerContext()
-      .get(RestConst.INVOCATION_HANDLER_REQUESTCLIENT);
+        .get(RestConst.INVOCATION_HANDLER_REQUESTCLIENT);
     if (null == restRequestImpl || null == restRequestImpl.getRequest()
-      || null == restRequestImpl.getRequest().method()) {
+        || null == restRequestImpl.getRequest().getMethod()) {
       builder.append(EMPTY_RESULT);
       return;
     }
-    builder.append(restRequestImpl.getRequest().method().toString());
+    builder.append(restRequestImpl.getRequest().getMethod().toString());
   }
 }

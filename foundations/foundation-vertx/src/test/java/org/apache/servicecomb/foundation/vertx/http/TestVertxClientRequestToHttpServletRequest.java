@@ -152,7 +152,7 @@ public class TestVertxClientRequestToHttpServletRequest {
   public void getMethod() {
     new Expectations() {
       {
-        clientRequest.method();
+        clientRequest.getMethod();
         result = HttpMethod.GET;
       }
     };

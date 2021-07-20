@@ -32,7 +32,7 @@ import io.netty.buffer.Unpooled;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import io.vertx.core.impl.FutureFactoryImpl;
+import io.vertx.core.Promise;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.impl.NetSocketImpl;
 import mockit.Deencapsulation;
@@ -192,11 +192,12 @@ public class TestTcpClientConnection {
 
   @Test
   public void connect_success(@Mocked NetSocketImpl netSocket) {
-    FutureFactoryImpl futureFactory = new FutureFactoryImpl();
+    Promise<NetSocket> promise = Promise.promise();
     new MockUp<NetClientWrapper>(netClientWrapper) {
       @Mock
       void connect(boolean ssl, int port, String host, Handler<AsyncResult<NetSocket>> connectHandler) {
-        connectHandler.handle(futureFactory.succeededFuture(netSocket));
+        promise.complete(netSocket);
+        connectHandler.handle(promise.future());
       }
     };
 
@@ -211,12 +212,13 @@ public class TestTcpClientConnection {
     requestMap.put(10L, new TcpRequest(10, ar -> {
     }));
 
-    FutureFactoryImpl futureFactory = new FutureFactoryImpl();
+    Promise<NetSocket> promise = Promise.promise();
     RuntimeException error = new RuntimeExceptionWithoutStackTrace();
     new MockUp<NetClientWrapper>(netClientWrapper) {
       @Mock
       void connect(boolean ssl, int port, String host, Handler<AsyncResult<NetSocket>> connectHandler) {
-        connectHandler.handle(futureFactory.failedFuture(error));
+        promise.fail(error);
+        connectHandler.handle(promise.future());
       }
     };
 

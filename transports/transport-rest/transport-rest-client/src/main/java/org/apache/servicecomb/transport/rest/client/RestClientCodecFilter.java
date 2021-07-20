@@ -27,6 +27,8 @@ import org.apache.servicecomb.swagger.invocation.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import io.vertx.core.http.HttpClientRequest;
+
 @Component
 public class RestClientCodecFilter implements ConsumerFilter {
   public static final String NAME = "rest-client-codec";
@@ -64,9 +66,12 @@ public class RestClientCodecFilter implements ConsumerFilter {
   @Override
   public CompletableFuture<Response> onFilter(Invocation invocation, FilterNode nextNode) {
     startClientFiltersRequest(invocation);
-
+    // TODO: after upgrade vert.x , can use request metric to calculate request end time
+    invocation.onStartSendRequest();
+    //
     return CompletableFuture.completedFuture(null)
-        .thenAccept(v -> prepareTransportContext(invocation))
+        .thenCompose(v -> transportContextFactory.createHttpClientRequest(invocation).toCompletionStage())
+        .thenAccept(httpClientRequest -> prepareTransportContext(invocation, httpClientRequest))
         .thenAccept(v -> encoder.encode(invocation))
         .thenCompose(v -> nextNode.onFilter(invocation))
         .thenApply(response -> decoder.decode(invocation, response))
@@ -77,8 +82,12 @@ public class RestClientCodecFilter implements ConsumerFilter {
     invocation.getInvocationStageTrace().startClientFiltersRequest();
   }
 
-  protected void prepareTransportContext(Invocation invocation) {
-    RestClientTransportContext transportContext = transportContextFactory.create(invocation);
+  protected void prepareTransportContext(Invocation invocation, HttpClientRequest httpClientRequest) {
+    // TODO: after upgrade vert.x , can use request metric to calculate request end time
+    invocation.getInvocationStageTrace().finishGetConnection(System.nanoTime());
+    //
+
+    RestClientTransportContext transportContext = transportContextFactory.create(invocation, httpClientRequest);
     invocation.setTransportContext(transportContext);
   }
 

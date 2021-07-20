@@ -29,7 +29,8 @@ import org.apache.servicecomb.core.invocation.InvocationStageTrace;
 import org.apache.servicecomb.foundation.common.http.HttpStatus;
 import org.apache.servicecomb.foundation.vertx.executor.VertxContextExecutor;
 import org.apache.servicecomb.foundation.vertx.http.ReadStreamPart;
-import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultHttpSocketMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.DefaultClientMetrics;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultRequestMetric;
 import org.apache.servicecomb.foundation.vertx.stream.PumpFromPart;
 import org.apache.servicecomb.swagger.invocation.Response;
 import org.slf4j.Logger;
@@ -37,11 +38,11 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Multimap;
 
+import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.net.impl.ConnectionBase;
 
 public class RestClientSender {
   private static final Logger LOGGER = LoggerFactory.getLogger(RestClientSender.class);
@@ -63,12 +64,11 @@ public class RestClientSender {
     this.httpClientRequest = transportContext.getHttpClientRequest();
   }
 
-  @SuppressWarnings("deprecation")
   public CompletableFuture<Response> send() {
-    invocation.onStartSendRequest();
-
-    httpClientRequest.exceptionHandler(future::completeExceptionally);
-    httpClientRequest.handler(this::processResponse);
+    httpClientRequest.send().compose(response -> processResponse(response).compose(buffer -> {
+      future.complete(createResponse(response, buffer));
+      return Future.succeededFuture();
+    })).onFailure(future::completeExceptionally);
 
     // can read metrics of connection in vertx success/exception callback
     // but after the callback, maybe the connection will be reused or closed, metrics is not valid any more
@@ -136,16 +136,14 @@ public class RestClientSender {
         });
   }
 
-  protected void processResponse(HttpClientResponse httpClientResponse) {
+  protected Future<Buffer> processResponse(HttpClientResponse httpClientResponse) {
     transportContext.setHttpClientResponse(httpClientResponse);
 
     if (HttpStatus.isSuccess(httpClientResponse.statusCode()) && transportContext.isDownloadFile()) {
       ReadStreamPart streamPart = new ReadStreamPart(transportContext.getVertxContext(), httpClientResponse);
       future.complete(createResponse(httpClientResponse, streamPart));
     }
-
-    httpClientResponse.exceptionHandler(future::completeExceptionally);
-    httpClientResponse.bodyHandler(buffer -> future.complete(createResponse(httpClientResponse, buffer)));
+    return httpClientResponse.body();
   }
 
   protected Response createResponse(HttpClientResponse httpClientResponse, Object result) {
@@ -166,22 +164,18 @@ public class RestClientSender {
     if (throwable != null) {
       LOGGER.error("rest client send or receive failed, operation={}, method={}, endpoint={}, uri={}.",
           invocation.getMicroserviceQualifiedName(),
-          httpClientRequest.method(),
+          httpClientRequest.getMethod(),
           invocation.getEndpoint().getEndpoint(),
-          httpClientRequest.uri());
+          httpClientRequest.getURI());
     }
   }
 
   protected void processMetrics() {
     InvocationStageTrace stageTrace = invocation.getInvocationStageTrace();
 
-    // connection maybe null when exception happens such as ssl handshake failure
-    ConnectionBase connection = (ConnectionBase) httpClientRequest.connection();
-    if (connection != null) {
-      DefaultHttpSocketMetric httpSocketMetric = (DefaultHttpSocketMetric) connection.metric();
-      stageTrace.finishGetConnection(httpSocketMetric.getRequestBeginTime());
-      stageTrace.finishWriteToBuffer(httpSocketMetric.getRequestEndTime());
-    }
+    // TODO: after upgrade vert.x , can use request metric to calculate request end time
+    stageTrace.finishWriteToBuffer(System.nanoTime());
+    //
 
     // even failed and did not received response, still set time for it
     // that will help to know the real timeout time

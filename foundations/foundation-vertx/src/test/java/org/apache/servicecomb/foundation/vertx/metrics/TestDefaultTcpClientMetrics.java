@@ -17,6 +17,7 @@
 package org.apache.servicecomb.foundation.vertx.metrics;
 
 import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultClientEndpointMetric;
+import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultEndpointMetric;
 import org.apache.servicecomb.foundation.vertx.metrics.metric.DefaultTcpSocketMetric;
 import org.junit.Assert;
 import org.junit.Before;
@@ -58,19 +59,19 @@ public class TestDefaultTcpClientMetrics {
 
   SocketAddress address2 = new SocketAddressImpl(port2, host);
 
-  DefaultClientEndpointMetric endpointMetric_a_1;
+  DefaultEndpointMetric endpointMetric_a_1;
 
   DefaultTcpSocketMetric socketMetric_a_1;
 
-  DefaultClientEndpointMetric endpointMetric_a_2;
+  DefaultEndpointMetric endpointMetric_a_2;
 
   DefaultTcpSocketMetric socketMetric_a_2;
 
-  DefaultClientEndpointMetric endpointMetric_b_1;
+  DefaultEndpointMetric endpointMetric_b_1;
 
   DefaultTcpSocketMetric socketMetric_b_1;
 
-  DefaultClientEndpointMetric endpointMetric_b_2;
+  DefaultEndpointMetric endpointMetric_b_2;
 
   DefaultTcpSocketMetric socketMetric_b_2;
 
@@ -175,7 +176,7 @@ public class TestDefaultTcpClientMetrics {
       nanoTime = 2;
       clientMetrics_a.disconnected(socketMetric_a_1, null);
 
-      Assert.assertEquals(2, endpointMetric_a_1.getLastNanoTime());
+      Assert.assertEquals(2, ((DefaultClientEndpointMetric) endpointMetric_a_1).getLastNanoTime());
       Assert.assertFalse(socketMetric_a_1.isConnected());
       Assert.assertEquals(1, socketMetric_a_1.getConnectedTime());
       Assert.assertEquals(2, socketMetric_a_1.getEndpointMetric().getConnectCount());
@@ -194,7 +195,7 @@ public class TestDefaultTcpClientMetrics {
       nanoTime = 4;
       clientMetrics_a.disconnected(socketMetric_a_2, null);
 
-      Assert.assertEquals(4, endpointMetric_a_2.getLastNanoTime());
+      Assert.assertEquals(4, ((DefaultClientEndpointMetric) endpointMetric_a_2).getLastNanoTime());
       Assert.assertFalse(socketMetric_a_2.isConnected());
       Assert.assertEquals(1, socketMetric_a_2.getConnectedTime());
       Assert.assertEquals(2, socketMetric_a_2.getEndpointMetric().getConnectCount());
@@ -213,7 +214,7 @@ public class TestDefaultTcpClientMetrics {
       nanoTime = 6;
       clientMetrics_b.disconnected(socketMetric_b_1, null);
 
-      Assert.assertEquals(6, endpointMetric_b_1.getLastNanoTime());
+      Assert.assertEquals(6, ((DefaultClientEndpointMetric) endpointMetric_b_1).getLastNanoTime());
       Assert.assertFalse(socketMetric_b_1.isConnected());
       Assert.assertEquals(1, socketMetric_b_1.getConnectedTime());
       Assert.assertEquals(2, socketMetric_b_1.getEndpointMetric().getConnectCount());
@@ -232,7 +233,7 @@ public class TestDefaultTcpClientMetrics {
       nanoTime = 7;
       clientMetrics_b.disconnected(socketMetric_b_2, null);
 
-      Assert.assertEquals(7, endpointMetric_b_2.getLastNanoTime());
+      Assert.assertEquals(7, ((DefaultClientEndpointMetric) endpointMetric_b_2).getLastNanoTime());
       Assert.assertFalse(socketMetric_b_2.isConnected());
       Assert.assertEquals(1, socketMetric_b_2.getConnectedTime());
       Assert.assertEquals(2, socketMetric_b_2.getEndpointMetric().getConnectCount());
@@ -259,14 +260,5 @@ public class TestDefaultTcpClientMetrics {
     Assert.assertEquals(2, endpointMetric_a_2.getBytesRead());
     Assert.assertEquals(2, endpointMetric_a_1.getBytesWritten());
     Assert.assertEquals(2, endpointMetric_a_2.getBytesWritten());
-  }
-
-  @SuppressWarnings("deprecation")
-  @Test
-  public void meaningless() {
-    Assert.assertTrue(clientMetrics_a.isEnabled());
-
-    clientMetrics_a.exceptionOccurred(null, null, null);
-    clientMetrics_a.close();
   }
 }

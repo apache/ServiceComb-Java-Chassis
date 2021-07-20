@@ -21,6 +21,9 @@ servicecomb:
   rest:
     client:
       maxHeaderSize: 10000
+  # avoid connect timeout not take effect and test taken too long
+  request:
+    timeout: 5000
 
 placeholder:
   - ${placeholder-key1}

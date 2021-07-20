@@ -24,16 +24,15 @@
     </encoder>
   </appender>
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>servicecomb.log</file>
+    <file>servicecomb-integration-standalone.log</file>
     <append>true</append>
     <encoder>
       <pattern>%d [%level] [%thread][%marker] - %msg (%F:%L\)%n</pattern>
     </encoder>
   </appender>
-  <logger name="org.apache.servicecomb.common.javassist.JavassistUtils" level="WARN"/>
-  <logger name="org.apache.servicecomb.core.definition.schema.ProducerSchemaFactory" level="WARN"/>
-  <root level="WARN">
-    <appender-ref ref="STDOUT"/>
+  <logger name="org.apache.servicecomb.core.provider.producer.ProducerBootListener" level="WARN"/>
+  <root level="INFO">
+    <appender-ref level="WARN" ref="STDOUT"/>
     <appender-ref ref="FILE"/>
   </root>
 </configuration>

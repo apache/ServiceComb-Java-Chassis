@@ -100,7 +100,7 @@ public class FirstLineOfRequestItemTest {
   @Test
   public void clientFormattedElement() {
     String uri = "/test/uri";
-    when(clientRequest.method()).thenReturn(HttpMethod.DELETE);
+    when(clientRequest.getMethod()).thenReturn(HttpMethod.DELETE);
     when(clientRequest.path()).thenReturn(uri);
     when(urlEndpoint.isHttp2Enabled()).thenReturn(true);
 

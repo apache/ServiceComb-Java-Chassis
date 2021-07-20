@@ -53,7 +53,7 @@ public class SharedVertxFactory {
   private static Vertx createSharedVertx(String name) {
     SharedVertxInfo info = new SharedVertxInfo();
 
-    Vertx vertx = VertxUtils.init(info.vertxOptions);
+    Vertx vertx = VertxUtils.init(name, info.vertxOptions);
     info.metricsFactory.setVertx(vertx, info.vertxOptions);
     vertx.sharedData().getLocalMap(LOCAL_MAP_NAME).put(INFO, info);
 

@@ -14,39 +14,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.servicecomb.foundation.vertx.metrics.metric;
 
-// if can not get connection from connection pool
-// then both requestBeginTime and requestEndTime will be 0
-public class DefaultHttpSocketMetric extends DefaultTcpSocketMetric {
+public class DefaultRequestMetric {
   private long requestBeginTime;
 
   private long requestEndTime;
 
-  public DefaultHttpSocketMetric() {
-  }
+  private long responseBeginTime;
 
-  public DefaultHttpSocketMetric(DefaultEndpointMetric endpointMetric) {
-    super(endpointMetric);
+  private long responseEndTime;
+
+  private final DefaultEndpointMetric endpointMetric;
+
+  public DefaultRequestMetric(DefaultEndpointMetric endpointMetric) {
+    this.endpointMetric = endpointMetric;
   }
 
   public long getRequestBeginTime() {
     return requestBeginTime != 0 ? requestBeginTime : System.nanoTime();
   }
 
-  public void requestBegin() {
-    this.requestBeginTime = System.nanoTime();
-  }
-
   public long getRequestEndTime() {
     return requestEndTime != 0 ? requestEndTime : System.nanoTime();
+  }
+
+  public long getResponseBeginTime() {
+    return responseBeginTime != 0 ? responseBeginTime : System.nanoTime();
+  }
+
+  public long getResponseEndTime() {
+    return responseEndTime != 0 ? responseEndTime : System.nanoTime();
+  }
+
+  public void requestBegin() {
+    this.requestBeginTime = System.nanoTime();
   }
 
   public void requestEnd() {
     this.requestEndTime = System.nanoTime();
   }
 
+  public void responseBegin() {
+    this.responseBeginTime = System.nanoTime();
+  }
+
   public void responseEnd() {
+    this.responseEndTime = System.nanoTime();
     this.endpointMetric.incrementRequests();
     this.endpointMetric.addLatency(System.nanoTime() - this.requestBeginTime);
   }

@@ -33,8 +33,8 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import io.vertx.core.http.Cookie;
+import io.vertx.core.http.impl.CookieImpl;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.impl.CookieImpl;
 
 public class CookieItemTest {
 

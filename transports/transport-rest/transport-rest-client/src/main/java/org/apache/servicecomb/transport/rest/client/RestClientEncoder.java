@@ -89,9 +89,9 @@ public class RestClientEncoder {
     protected void doEncode() throws Exception {
       RestClientEncoder.LOGGER.debug("encode rest client request, operation={}, method={}, endpoint={}, uri={}.",
           invocation.getMicroserviceQualifiedName(),
-          httpClientRequest.method(),
+          httpClientRequest.getMethod(),
           invocation.getEndpoint().getEndpoint(),
-          httpClientRequest.uri());
+          httpClientRequest.getURI());
 
       swaggerArgumentsToRequest();
 

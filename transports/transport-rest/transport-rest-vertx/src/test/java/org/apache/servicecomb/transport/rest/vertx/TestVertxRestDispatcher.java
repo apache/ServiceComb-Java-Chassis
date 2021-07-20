@@ -48,6 +48,7 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDec
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -384,8 +385,9 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public void end() {
+  public Future<Void> end() {
     responseEnded = true;
+    return Future.succeededFuture();
   }
 
   @Override
@@ -394,9 +396,10 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public void end(String chunk) {
+  public Future<Void> end(String chunk) {
     responseEnded = true;
     responseChunk = chunk;
+    return Future.succeededFuture();
   }
 
   @Override
@@ -410,13 +413,12 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public HttpServerResponse write(Buffer data) {
-    return null;
+  public Future<Void> write(Buffer data) {
+    return Future.succeededFuture();
   }
 
   @Override
-  public HttpServerResponse write(Buffer buffer, Handler<AsyncResult<Void>> handler) {
-    return null;
+  public void write(Buffer buffer, Handler<AsyncResult<Void>> handler) {
   }
 
   @Override
@@ -510,23 +512,22 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public HttpServerResponse write(String chunk, String enc) {
-    return null;
+  public Future<Void> write(String chunk, String enc) {
+    return Future.succeededFuture();
   }
 
   @Override
-  public HttpServerResponse write(String s, String s1, Handler<AsyncResult<Void>> handler) {
-    return null;
+  public void write(String s, String s1, Handler<AsyncResult<Void>> handler) {
   }
 
   @Override
-  public HttpServerResponse write(String chunk) {
-    return null;
+  public Future<Void> write(String chunk) {
+    return Future.succeededFuture();
   }
 
   @Override
-  public HttpServerResponse write(String s, Handler<AsyncResult<Void>> handler) {
-    return null;
+  public void write(String s, Handler<AsyncResult<Void>> handler) {
+
   }
 
   @Override
@@ -535,8 +536,8 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public void end(String chunk, String enc) {
-
+  public Future<Void> end(String chunk, String enc) {
+    return Future.succeededFuture();
   }
 
   @Override
@@ -545,8 +546,8 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public void end(Buffer chunk) {
-
+  public Future<Void> end(Buffer chunk) {
+    return Future.succeededFuture();
   }
 
   @Override
@@ -555,8 +556,8 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public HttpServerResponse sendFile(String filename, long offset, long length) {
-    return null;
+  public Future<Void> sendFile(String filename, long offset, long length) {
+    return Future.succeededFuture();
   }
 
   @Override
@@ -624,8 +625,13 @@ class MockHttpServerResponse implements HttpServerResponse {
   }
 
   @Override
-  public void reset(long code) {
+  public Future<HttpServerResponse> push(HttpMethod method, String host, String path, MultiMap headers) {
+    return Future.succeededFuture();
+  }
 
+  @Override
+  public boolean reset(long code) {
+    return false;
   }
 
   @Override

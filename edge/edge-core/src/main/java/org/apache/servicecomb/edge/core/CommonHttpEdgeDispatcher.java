@@ -42,10 +42,10 @@ import org.slf4j.LoggerFactory;
 import com.netflix.config.ConcurrentCompositeConfiguration;
 import com.netflix.config.DynamicPropertyFactory;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.RequestOptions;
 import io.vertx.ext.web.Router;
@@ -71,7 +71,7 @@ public class CommonHttpEdgeDispatcher extends AbstractEdgeDispatcher {
 
   private static final String KEY_MAPPING_PREFIX = "servicecomb.http.dispatcher.edge.http.mappings";
 
-  private Map<String, LoadBalancer> loadBalancerMap = new ConcurrentHashMapEx<>();
+  private final Map<String, LoadBalancer> loadBalancerMap = new ConcurrentHashMapEx<>();
 
   private Map<String, URLMappedConfigurationItem> configurations = new HashMap<>();
 
@@ -113,7 +113,6 @@ public class CommonHttpEdgeDispatcher extends AbstractEdgeDispatcher {
     });
   }
 
-  @SuppressWarnings("deprecation")
   protected void onRequest(RoutingContext context) {
     URLMappedConfigurationItem configurationItem = findConfigurationItem(context.request().uri());
     if (configurationItem == null) {
@@ -139,9 +138,8 @@ public class CommonHttpEdgeDispatcher extends AbstractEdgeDispatcher {
         configurationItem.getVersionRule());
     ServiceCombServer server = loadBalancer.chooseServer(invocation);
     if (server == null) {
-      context.response().setStatusCode(503);
-      context.response().setStatusMessage("service not ready");
-      context.response().end();
+      LOG.warn("no available server for service {}", configurationItem.getMicroserviceName());
+      serverNotReadyResponse(context);
       return;
     }
 
@@ -151,6 +149,7 @@ public class CommonHttpEdgeDispatcher extends AbstractEdgeDispatcher {
     requestOptions.setHost(endpointObject.getHostOrIp())
         .setPort(endpointObject.getPort())
         .setSsl(endpointObject.isSslEnabled())
+        .setMethod(context.request().method())
         .setURI(uri);
 
     HttpClient httpClient;
@@ -159,20 +158,36 @@ public class CommonHttpEdgeDispatcher extends AbstractEdgeDispatcher {
     } else {
       httpClient = HttpClients.getClient(HttpTransportHttpClientOptionsSPI.CLIENT_NAME, false).getHttpClient();
     }
-    HttpClientRequest httpClientRequest = httpClient
-        .request(context.request().method(), requestOptions, httpClientResponse -> {
-          context.response().setStatusCode(httpClientResponse.statusCode());
-          httpClientResponse.headers().forEach((header) -> {
-            context.response().headers().set(header.getKey(), header.getValue());
-          });
-          httpClientResponse.handler(this.responseHandler(context, httpClientResponse));
-          httpClientResponse.endHandler((v) -> context.response().end());
+
+    httpClient
+        .request(requestOptions).compose(httpClientRequest -> {
+      context.request().headers().forEach((header) -> {
+        httpClientRequest.headers().set(header.getKey(), header.getValue());
+      });
+      context.request().handler(data -> httpClientRequest.write(data));
+      context.request().endHandler((v) -> httpClientRequest.end());
+
+      return httpClientRequest.response().compose(httpClientResponse -> {
+        context.response().setStatusCode(httpClientResponse.statusCode());
+        httpClientResponse.headers().forEach((header) -> {
+          context.response().headers().set(header.getKey(), header.getValue());
         });
-    context.request().headers().forEach((header) -> {
-      httpClientRequest.headers().set(header.getKey(), header.getValue());
+        httpClientResponse.handler(this.responseHandler(context, httpClientResponse));
+        httpClientResponse.endHandler((v) -> context.response().end());
+        return Future.succeededFuture();
+      });
+    }).onFailure(failure -> {
+      LOG.warn("send request to target {}:{} failed, cause {}", endpointObject.getHostOrIp(), endpointObject.getPort(),
+          failure.getMessage());
+      serverNotReadyResponse(context);
+      return;
     });
-    context.request().handler(data -> httpClientRequest.write(data));
-    context.request().endHandler((v) -> httpClientRequest.end());
+  }
+
+  private void serverNotReadyResponse(RoutingContext context) {
+    context.response().setStatusCode(503);
+    context.response().setStatusMessage("service not ready");
+    context.response().end();
   }
 
   protected Handler<Buffer> responseHandler(RoutingContext routingContext, HttpClientResponse httpClientResponse) {

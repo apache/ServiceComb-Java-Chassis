@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.eventbus.Subscribe;
 import com.netflix.config.DynamicPropertyFactory;
 
+import io.vertx.core.json.jackson.JacksonFactory;
 import io.vertx.core.spi.json.JsonCodec;
 
 public class RegistrationManager {
@@ -324,7 +325,7 @@ public class RegistrationManager {
   }
 
   private String getEndpoints(List<String> endpoints) {
-    return JsonCodec.INSTANCE.toString(endpoints);
+    return JacksonFactory.CODEC.toString(endpoints);
   }
 
   public static class AfterServiceInstanceRegistryHandler {

@@ -45,6 +45,5 @@ public class TestDefaultVertxMetricsFactory {
 
     Assert.assertSame(factory.getVertxMetrics(), vertxMetrics);
     Assert.assertTrue(vertxMetrics.isMetricsEnabled());
-    Assert.assertTrue(vertxMetrics.isEnabled());
   }
 }

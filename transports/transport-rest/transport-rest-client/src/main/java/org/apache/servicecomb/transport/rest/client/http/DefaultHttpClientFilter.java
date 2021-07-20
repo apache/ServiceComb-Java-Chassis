@@ -102,7 +102,12 @@ public class DefaultHttpClientFilter implements HttpClientFilter {
 
     try {
       result = produceProcessor.decodeResponse(responseEx.getBodyBuffer(), responseType);
-      return Response.create(responseEx.getStatusType(), result);
+      Response response = Response.create(responseEx.getStatusType(), result);
+      if (response.isFailed()) {
+        LOGGER.warn("invoke operation [{}] failed, status={}", invocation.getMicroserviceQualifiedName(),
+            responseEx.getStatusType().getStatusCode());
+      }
+      return response;
     } catch (Exception e) {
       LOGGER.error("failed to decode response body, exception is [{}]", e.getMessage());
       String msg =

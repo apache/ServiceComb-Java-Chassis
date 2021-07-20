@@ -18,12 +18,21 @@ package org.apache.servicecomb.foundation.vertx.metrics;
 
 import java.util.concurrent.TimeUnit;
 
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.metrics.MetricsOptions;
 
 public class MetricsOptionsEx extends MetricsOptions {
   private long checkClientEndpointMetricIntervalInMilliseconds = TimeUnit.MINUTES.toMillis(1);
 
   private long checkClientEndpointMetricExpiredInNano = TimeUnit.MINUTES.toNanos(15);
+
+  public MetricsOptionsEx() {
+    super();
+  }
+
+  public MetricsOptionsEx(JsonObject json) {
+    super(json);
+  }
 
   public long getCheckClientEndpointMetricIntervalInMilliseconds() {
     return checkClientEndpointMetricIntervalInMilliseconds;

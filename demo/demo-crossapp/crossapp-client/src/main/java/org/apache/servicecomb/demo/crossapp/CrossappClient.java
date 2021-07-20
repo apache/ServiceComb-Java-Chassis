@@ -78,7 +78,7 @@ public class CrossappClient {
         .exchange("http://127.0.0.1:8080/helloworld/hello", HttpMethod.OPTIONS, requestEntity,
             String.class);
 
-    TestMgr.check("200", responseEntity.getStatusCodeValue());
+    TestMgr.check("204", responseEntity.getStatusCodeValue());
     TreeSet<String> sortedSet = new TreeSet<>(responseEntity.getHeaders().get("Access-Control-Allow-Methods"));
     TestMgr.check("[DELETE,POST,GET,PUT]", sortedSet);
     sortedSet = new TreeSet<>(responseEntity.getHeaders().get("Access-Control-Allow-Headers"));

@@ -18,6 +18,7 @@ package org.apache.servicecomb.transport.rest.client;
 
 import org.apache.servicecomb.core.Invocation;
 
+import io.vertx.core.Future;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
@@ -31,18 +32,19 @@ import io.vertx.core.http.RequestOptions;
  * this interface allowed to modify host by invocation argument, eg:<br>
  * <pre>
  * {@code
- *  HttpClientRequest create(Invocation invocation, HttpClient httpClient, HttpMethod method, RequestOptions options) {
+ *  Future<HttpClientRequest> create(Invocation invocation, HttpClient httpClient, HttpMethod method, RequestOptions options) {
  *    if ("k8s".equals(invocation.getMicroserviceName())) {
  *      options.setHost(invocation.getSwaggerArgument("clusterId") + "." + options.getHost());
  *    }
  *
- *    return httpClient.request(method, options);
+ *    return httpClient.request(options);
  *  }
  * }
  * </pre>
  */
 public interface HttpClientRequestFactory {
-  HttpClientRequestFactory DEFAULT = (invocation, httpClient, method, options) -> httpClient.request(method, options);
+  HttpClientRequestFactory DEFAULT = (invocation, httpClient, options) -> httpClient.request(options);
 
-  HttpClientRequest create(Invocation invocation, HttpClient httpClient, HttpMethod method, RequestOptions options);
+  Future<HttpClientRequest> create(Invocation invocation, HttpClient httpClient, RequestOptions options)
+      throws Throwable;
 }
